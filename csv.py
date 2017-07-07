@@ -65,7 +65,9 @@ class CSVParser:
             else:
                 self.field_start = False
                 self.tok += c
+
         row.append(self.tok)
+
         if len(row) is not self.fields:
             raise ValueError(f'Number of fields in row {self.row_number} '
                 'isn\'t the same as number of fields in first row')
@@ -111,7 +113,7 @@ class CSVParser:
                     tmp[self.field_names[i]] = field
                 ret.append(tmp)
             else:
-                ret.append(row_list)
+                ret.append(tuple(row_list))
 
         return ret
 
@@ -120,8 +122,6 @@ class CSVParser:
 import argparse
 
 csvparser = CSVParser()
-csvparser.crlf = '\n'
-csvparser.headers = True
 
 prog = 'csvparse'
 argparser = argparse.ArgumentParser(
@@ -134,17 +134,39 @@ argparser.add_argument('src_file', nargs='*',
 argparser.add_argument('-', action='store_true', dest='use_stdin',
     help='Read from STDIN instead of a file.')
 
+argparser.add_argument('-c', '--crlf', type=str, default='\n',
+    help='CRLF string; (sensible) default is `\\n` but should be `\\r\\n` '
+    'according to RFC 4180.')
+
+argparser.add_argument('-d', '--delimiter', type=str, default=',',
+    help='Delimiter character')
+
+argparser.add_argument('-q', '--quote', type=str, default='"',
+    help='Quote character')
+
+argparser.add_argument('-e', '--headers', action='store_true',
+    help='Parse the first row as headers; return list of dicts instead of '
+    'list of tuples')
+
 args = argparser.parse_args()
+
+csvparser.crlf      = args.crlf
+csvparser.delimiter = args.delimiter
+csvparser.quote     = args.quote
+csvparser.headers   = args.headers
+
+import pprint
+p = pprint.PrettyPrinter(indent=4)
 
 if args.use_stdin or args.src_file is None:
     # catenate stdinput, parse / render
     src = ''
     for line in sys.stdin:
         src += line + '\n'
-    print(csvparser.parse(src))
+    p.pprint(csvparser.parse(src))
     exit()
 
 for fname in args.src_file:
     with open(fname, 'r', encoding='utf-8') as f:
         csvparser.reset()
-        print(csvparser.parse(f.read()))
+        p.pprint(csvparser.parse(f.read()))
