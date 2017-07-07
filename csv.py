@@ -12,6 +12,8 @@ class CSVParser:
         self.fields          = 0
         self.passedcrlfchars = 0
         self.row_number      = 0
+        self.headers         = False
+        self.field_names     = []
 
     def reset_field(self):
         self.tok             = ''
@@ -70,8 +72,9 @@ class CSVParser:
         return row
 
     def parse(self, txt):
-        self.crlflen   = len(self.crlf)
-        ret            = []
+        self.crlflen    = len(self.crlf)
+        ret             = []
+        rows            = []
         self.row_number = 0
 
         for c in txt:
@@ -90,12 +93,26 @@ class CSVParser:
                     self.passedcrlfchars += 1
                     if self.passedcrlfchars is self.crlflen:
                         # row end!
-                        ret.append(self.parse_row(self.row_raw))
+                        rows.append(self.row_raw)
                         self.row_number += 1
                         self.reset_row()
                 else:
                     self.field_start = False
                     self.row_raw += c
+
+        if self.headers:
+            self.field_names = self.parse_row(rows[0])
+
+        for row in rows:
+            row_list = self.parse_row(row)
+            if self.headers:
+                tmp = {}
+                for i, field in enumerate(row_list):
+                    tmp[self.field_names[i]] = field
+                ret.append(tmp)
+            else:
+                ret.append(row_list)
+
         return ret
 
 # cli, decoration
@@ -104,6 +121,7 @@ import argparse
 
 csvparser = CSVParser()
 csvparser.crlf = '\n'
+csvparser.headers = True
 
 prog = 'csvparse'
 argparser = argparse.ArgumentParser(
